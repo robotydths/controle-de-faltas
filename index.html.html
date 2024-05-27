@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Faltas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        input[type="date"], input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .hidden {
+            display: none;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+            cursor: pointer;
+        }
+        .delete-button {
+            background-color: #dc3545;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+        .info {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Registro de Faltas</h1>
+    <form id="absenceForm">
+        <label for="date">Data:</label>
+        <input type="date" id="date" required>
+        
+        <label for="period">Período:</label>
+        <select id="period" required>
+            <option value="Manhã">Manhã (6 aulas)</option>
+            <option value="Tarde">Tarde (5 aulas)</option>
+            <option value="Outro período">Outro período</option>
+        </select>
+        <input type="text" id="customPeriod" class="hidden" placeholder="Especifique o período">
+        <input type="number" id="customPeriodLessons" class="hidden" placeholder="Número de aulas" min="1">
+
+        <label for="reason">Motivo:</label>
+        <select id="reason" required>
+            <option value="Preguiça">Preguiça</option>
+            <option value="Doente">Doente</option>
+            <option value="Academia">Academia</option>
+            <option value="Estudar">Estudar</option>
+            <option value="Outro motivo">Outro motivo</option>
+        </select>
+        <input type="text" id="customReason" class="hidden" placeholder="Especifique o motivo">
+
+        <button type="submit">Registrar Falta</button>
+    </form>
+
+    <div class="info">
+        <p>Total de aulas faltadas: <span id="totalLessonsMissed">0</span></p>
+        <p>Faltas restantes: <span id="remainingLessons">400</span></p>
+    </div>
+
+    <div class="filters">
+        <label for="sortOrder">Ordenar por:</label>
+        <select id="sortOrder">
+            <option value="mostRecent">Mais Recentes</option>
+            <option value="leastRecent">Mais Antigas</option>
+            <option value="morning">Aulas da Manhã</option>
+            <option value="afternoon">Aulas da Tarde</option>
+            <option value="other">Outro Período</option>
+        </select>
+    </div>
+
+    <table id="absencesTable">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Período</th>
+                <th>Motivo</th>
+                <th>Aulas</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Registros de faltas serão inseridos aqui -->
+        </tbody>
+    </table>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('absenceForm');
+            const periodSelect = document.getElementById('period');
+            const customPeriodInput = document.getElementById('customPeriod');
+            const customPeriodLessonsInput = document.getElementById('customPeriodLessons');
+            const reasonSelect = document.getElementById('reason');
+            const customReasonInput = document.getElementById('customReason');
+            const absencesTable = document.getElementById('absencesTable').getElementsByTagName('tbody')[0];
+            const totalLessonsMissedElement = document.getElementById('totalLessonsMissed');
+            const remainingLessonsElement = document.getElementById('remainingLessons');
+            const sortOrderSelect = document.getElementById('sortOrder');
+            const TOTAL_ALLOWED_LESSONS = 400;
+
+            function calculateLessonsMissed(absences) {
+                return absences.reduce((total, absence) => total + absence.lessons, 0);
+            }
+
+            function updateLessonCounts() {
+                const absences = JSON.parse(localStorage.getItem('absences')) || [];
+                const totalLessonsMissed = calculateLessonsMissed(absences);
+                totalLessonsMissedElement.textContent = totalLessonsMissed;
+                remainingLessonsElement.textContent = TOTAL_ALLOWED_LESSONS - totalLessonsMissed;
+            }
+
+            periodSelect.addEventListener('change', function() {
+                if (periodSelect.value === 'Outro período') {
+                    customPeriodInput.classList.remove('hidden');
+                    customPeriodLessonsInput.classList.remove('hidden');
+                    customPeriodInput.required = true;
+                    customPeriodLessonsInput.required = true;
+                } else {
+                    customPeriodInput.classList.add('hidden');
+                    customPeriodLessonsInput.classList.add('hidden');
+                    customPeriodInput.required = false;
+                    customPeriodLessonsInput.required = false;
+                }
+            });
+
+            reasonSelect.addEventListener('change', function() {
+                if (reasonSelect.value === 'Outro motivo') {
+                    customReasonInput.classList.remove('hidden');
+                    customReasonInput.required = true;
+                } else {
+                    customReasonInput.classList.add('hidden');
+                    customReasonInput.required = false;
+                }
+            });
+
+            function formatDate(dateString) {
+                const options = { day: 'numeric', month: 'long' };
+                const date = new Date(dateString);
+                return date.toLocaleDateString('pt-BR', options);
+            }
+
+            function loadAbsences() {
+                const absences = JSON.parse(localStorage.getItem('absences')) || [];
+                absences.forEach(absence => addAbsenceToTable(absence));
+                updateLessonCounts();
+            }
+
+            function addAbsenceToTable(absence) {
+                const row = absencesTable.insertRow();
+                const dateCell = row.insertCell(0);
+                const periodCell = row.insertCell(1);
+                const reasonCell = row.insertCell(2);
+                const lessonsCell = row.insertCell(3);
+                const actionsCell = row.insertCell(4);
+
+                dateCell.textContent = formatDate(absence.date);
+                periodCell.textContent = absence.period;
+                reasonCell.textContent = absence.reason;
+                lessonsCell.textContent = absence.lessons;
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Excluir';
+                deleteButton.classList.add('delete-button');
+                deleteButton.onclick = function() {
+                    deleteAbsence(absence);
+                    absencesTable.deleteRow(row.rowIndex - 1);
+                    updateLessonCounts();
+                };
+                actionsCell.appendChild(deleteButton);
+            }
+
+            function saveAbsence(absence) {
+                const absences = JSON.parse(localStorage.getItem('absences')) || [];
+                absences.push(absence);
+                localStorage.setItem('absences', JSON.stringify(absences));
+            }
+
+            function deleteAbsence(absenceToDelete) {
+                let absences = JSON.parse(localStorage.getItem('absences')) || [];
+                absences = absences.filter(absence => 
+                    !(absence.date === absenceToDelete.date &&
+                      absence.period === absenceToDelete.period &&
+                      absence.reason === absenceToDelete.reason &&
+                      absence.lessons === absenceToDelete.lessons)
+                );
+                localStorage.setItem('absences', JSON.stringify(absences));
+            }
+
+            function sortAbsences(absences, sortOrder) {
+                if (sortOrder === 'mostRecent') {
+                    absences.sort((a, b) => new Date(b.date) - new Date(a.date));
+                } else if (sortOrder === 'leastRecent') {
+                    absences.sort((a, b) => new Date(a.date) - new Date(b.date));
+                } else if (sortOrder === 'morning') {
+                    absences.sort((a, b) => {
+                        if (a.period === 'Manhã' && b.period !== 'Manhã') return -1;
+                        if (a.period !== 'Manhã' && b.period === 'Manhã') return 1;
+                        return 0;
+                    });
+                } else if (sortOrder === 'afternoon') {
+                    absences.sort((a, b) => {
+                        if (a.period === 'Tarde' && b.period !== 'Tarde') return -1;
+                        if (a.period !== 'Tarde' && b.period === 'Tarde') return 1;
+                        return 0;
+                    });
+                } else if (sortOrder === 'other') {
+                    absences.sort((a, b) => {
+                        if (a.period === 'Outro período' && b.period !== 'Outro período') return -1;
+                        if (a.period !== 'Outro período' && b.period === 'Outro período') return 1;
+                        return 0;
+                    });
+                }
+            }
+
+            sortOrderSelect.addEventListener('change', function() {
+                const absences = JSON.parse(localStorage.getItem('absences')) || [];
+                absencesTable.innerHTML = '';
+                sortAbsences(absences, sortOrderSelect.value);
+                absences.forEach(absence => addAbsenceToTable(absence));
+            });
+
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                const date = document.getElementById('date').value;
+                let period = periodSelect.value;
+                let lessons = 0;
+                if (period === 'Outro período') {
+                    period = customPeriodInput.value;
+                    lessons = parseInt(customPeriodLessonsInput.value);
+                } else if (period === 'Manhã') {
+                    lessons = 6;
+                } else if (period === 'Tarde') {
+                    lessons = 5;
+                }
+
+                let reason = reasonSelect.value;
+                if (reason === 'Outro motivo') {
+                    reason = customReasonInput.value;
+                }
+
+                const absence = {
+                    date,
+                    period,
+                    reason,
+                    lessons
+                };
+
+                addAbsenceToTable(absence);
+                saveAbsence(absence);
+                updateLessonCounts();
+            });
+
+            loadAbsences();
+        });
+    </script>
+</body>
+</html>
